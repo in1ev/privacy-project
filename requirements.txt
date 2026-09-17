@@ -1,0 +1,9 @@
+flask
+flask-sqlalchemy
+pyjwt
+cryptography
+requests
+bandit
+safety
+pytest
+matplotlib
