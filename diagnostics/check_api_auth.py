@@ -1,17 +1,17 @@
 import requests
 import json
+from config import DEFAULT_TARGET
 
-PAY_URL = "http://127.0.0.1:5001"
 
 
-def check_link_api_without_auth():
+def check_link_api_without_auth(target=DEFAULT_TARGET):
     """
     [결함3 진단] 한빛페이의 /accounts/link API가
     인증 토큰/서명 없이 호출되어도 계정을 생성해주는지 확인한다.
     """
     result = {
         "check_name": "API 무인증 통신 (결함3)",
-        "target": f"{PAY_URL}/accounts/link",
+        "target": f"{target.pay_url}/accounts/link",
         "passed": None,
         "detail": ""
     }
@@ -25,7 +25,7 @@ def check_link_api_without_auth():
 
     try:
         # 의도적으로 인증 헤더를 전혀 넣지 않고 요청
-        res = requests.post(f"{PAY_URL}/accounts/link", json=fake_payload, timeout=5)
+        res = requests.post(f"{target.pay_url}/accounts/link", json=fake_payload, timeout=5)
 
         if res.status_code == 201:
             result["passed"] = False

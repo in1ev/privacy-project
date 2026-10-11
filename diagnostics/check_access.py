@@ -1,10 +1,9 @@
 import requests
 import json
+from config import DEFAULT_TARGET
 
-MARKET_URL = "http://127.0.0.1:5000"
 
-
-def check_admin_access_without_auth():
+def check_admin_access_without_auth(target=DEFAULT_TARGET):
     """
     [결함1 진단] /admin/members API가 인증 없이 호출되었을 때
     실제로 데이터를 반환하는지 확인한다.
@@ -14,13 +13,13 @@ def check_admin_access_without_auth():
     """
     result = {
         "check_name": "접근권한 미분리 (결함1)",
-        "target": f"{MARKET_URL}/admin/members",
+        "target": f"{target.market_url}/admin/members",
         "passed": None,
         "detail": ""
     }
 
     try:
-        res = requests.get(f"{MARKET_URL}/admin/members", timeout=5)
+        res = requests.get(f"{target.market_url}/admin/members", timeout=5)
 
         if res.status_code == 200:
             member_count = len(res.json())

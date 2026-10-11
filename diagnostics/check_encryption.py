@@ -3,7 +3,7 @@ import re
 import json
 import os
 
-MARKET_DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'hanbit-market', 'market.db')
+from config import DEFAULT_TARGET
 
 # 카드번호 패턴: 12~19자리 숫자 (실제 카드번호 형식과 유사)
 CARD_PATTERN = re.compile(r'^\d{12,19}$')
@@ -11,7 +11,7 @@ CARD_PATTERN = re.compile(r'^\d{12,19}$')
 PHONE_PATTERN = re.compile(r'^01\d{8,9}$')
 
 
-def check_plaintext_storage():
+def check_plaintext_storage(target=DEFAULT_TARGET):
     """
     [결함2 진단] members 테이블의 card_number, phone 컬럼 값이
     평문(암호화되지 않은 원본 형태) 패턴과 일치하는지 확인한다.
@@ -19,18 +19,20 @@ def check_plaintext_storage():
     암호화되어 있다면 Base64/hex 등으로 인코딩된 형태라
     위 정규식 패턴과 일치하지 않아야 한다.
     """
+    db_path = target.market_db_path
+
     result = {
         "check_name": "결제정보·연락처 평문 저장 (결함2)",
-        "target": MARKET_DB_PATH,
+        "target": db_path,
         "passed": None,
         "detail": ""
     }
 
-    if not os.path.exists(MARKET_DB_PATH):
+    if not os.path.exists(db_path):
         result["detail"] = "market.db 파일을 찾을 수 없음"
         return result
 
-    conn = sqlite3.connect(MARKET_DB_PATH)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT id, phone, card_number FROM members")
     rows = cursor.fetchall()
