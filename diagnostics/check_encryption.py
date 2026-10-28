@@ -37,6 +37,10 @@ def check_plaintext_storage(target=DEFAULT_TARGET):
     cursor.execute("SELECT id, phone, card_number FROM members")
     rows = cursor.fetchall()
     conn.close()
+    
+    if not rows:
+        result["detail"] = "members 테이블에 검사할 데이터가 없음 (회원을 먼저 생성하세요)"
+        return result
 
     plaintext_findings = []
 

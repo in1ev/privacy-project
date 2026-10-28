@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 *.db
 .env
-report/latest_diagnosis.json
+report/latest_*.json
+venv_after/
