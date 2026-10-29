@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify
-from models import db, Member, Order
+from flask import Flask, request, jsonify, g
+from models import db, Member, Order, AccessLog
 from crypto import encrypt
 from datetime import datetime
 import os
@@ -11,6 +11,32 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(basedir, "mark
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
+
+
+# --- 접속기록 (모든 요청 공통) ---
+@app.after_request
+def write_access_log(response):
+    """
+    [개선4] 모든 요청의 처리 결과를 access_logs에 남긴다.
+    - 요청 본문과 쿼리 값은 기록하지 않는다 (개인정보가 로그에 남지 않도록).
+    - 로그 저장이 실패해도 원래 응답은 그대로 돌려주되, 실패 사실은 서버 로그에 남긴다.
+    """
+    try:
+        db.session.rollback()    # 요청 처리 중 실패한 트랜잭션이 남아 있으면 먼저 정리
+        rule = request.url_rule.rule if request.url_rule else "(no route)"
+        view_args = request.view_args or {}
+        db.session.add(AccessLog(
+            member_id=getattr(g, "current_member_id", None),   # 결함1 단계에서 로그인 정보가 채워짐
+            action=f"{request.method} {rule}",
+            target_id=view_args.get("member_id"),
+            ip_address=request.remote_addr,
+            status_code=response.status_code,
+        ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("접속기록 저장 실패")
+    return response
 
 
 # --- 회원가입 ---
@@ -29,8 +55,6 @@ def create_member():
     )
     db.session.add(new_member)
     db.session.commit()
-
-    # [결함4] 접속기록(access_logs)에 남기는 코드가 없음
 
     return jsonify(new_member.to_dict()), 201
 
