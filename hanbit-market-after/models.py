@@ -23,22 +23,21 @@ class Member(db.Model):
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(255), nullable=False)         # [개선2] AES-GCM 암호문 저장
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(200), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)   # [개선1] 해시로만 저장
     address = db.Column(db.String(300))
     card_number = db.Column(db.String(255))                   # [개선2] AES-GCM 암호문 저장
 
-    role = db.Column(db.String(20), default='user')           # [결함1] admin/cs/user 구분은 있으나
-                                                                #          이 값을 체크하는 로직이 API 단에 없음
-
+    role = db.Column(db.String(20), default='user')           # [개선1] user / cs / admin. API에서 실제로 검사함
+    
     is_withdrawn = db.Column(db.Boolean, default=False)
     withdrawn_at = db.Column(db.DateTime, nullable=True)       # [결함7] 탈퇴 시각만 기록, 개인정보는 그대로 잔존
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def to_dict(self):
+    def to_dict(self, for_role='user'):
         # 응답에는 암호문이 아니라 마스킹된 값만 나간다.
-        # (결함1은 아직 남아 있어 role 구분 없이 누구나 이 응답을 받을 수 있음)
-        return {
+        # 상담원(cs)에게는 카드번호와 주소를 아예 보여주지 않는다. (최소 권한)
+        data = {
             'id': self.id,
             'name': self.name,
             'phone': _view(self.phone, mask_phone),
@@ -50,6 +49,10 @@ class Member(db.Model):
             'withdrawn_at': self.withdrawn_at.isoformat() if self.withdrawn_at else None,
             'created_at': self.created_at.isoformat()
         }
+        if for_role == 'cs':
+            data.pop('card_number')
+            data.pop('address')
+        return data
 
 
 class Order(db.Model):
