@@ -3,9 +3,12 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Member, Order, AccessLog
 from auth import require_auth, issue_token, TOKEN_LIFETIME
-from crypto import encrypt
+from crypto import encrypt, decrypt
+from signing import sign
 from datetime import datetime
+import json
 import os
+import requests
 
 app = Flask(__name__)
 
@@ -17,6 +20,7 @@ db.init_app(app)
 
 # 존재하지 않는 이메일로 로그인해도 비밀번호 검증과 비슷한 시간이 걸리게 하기 위한 더미 해시
 DUMMY_HASH = generate_password_hash("dummy-password-for-timing")
+PAY_URL = os.environ.get("HANBIT_PAY_URL", "http://127.0.0.1:5011")
 
 
 # --- 접속기록 (모든 요청 공통) ---
@@ -138,6 +142,30 @@ def withdraw_member(member_id):
     db.session.commit()
     return jsonify({'message': '탈퇴 처리 완료', 'member': member.to_dict(for_role=me.role)})
 
+# --- 한빛페이 연동: 본인이 요청한 경우만, 서버끼리 서명해서 전달 ---
+@app.route('/members/<int:member_id>/link-pay', methods=['POST'])
+@require_auth()
+def link_pay(member_id):
+    me = g.current_member
+    if me.id != member_id:                       # 본인만 연동 가능 (관리자도 대신 연동할 수 없다)
+        return jsonify({'error': '권한이 없습니다'}), 403
+
+    # 원본 전화번호는 서버 안에서만 복호화한다. API 응답에는 마스킹된 값만 나가므로
+    # 별도 스크립트가 원본을 받아 가는 구조가 아니라, 서버가 직접 한빛페이로 전달한다.
+    payload = {"name": me.name, "phone": decrypt(me.phone), "market_id": me.id}
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json", **sign("POST", "/accounts/link", body)}
+
+    try:
+        res = requests.post(f"{PAY_URL}/accounts/link", data=body, headers=headers, timeout=5)
+    except requests.exceptions.RequestException:
+        return jsonify({'error': '한빛페이 서버에 연결할 수 없습니다'}), 502
+
+    if res.status_code == 409:
+        return jsonify({'error': '이미 한빛페이와 연동되어 있습니다'}), 409
+    if res.status_code != 201:
+        return jsonify({'error': '한빛페이 연동에 실패했습니다', 'pay_status': res.status_code}), 502
+    return jsonify({'message': '한빛페이 연동 완료', 'pay_account_id': res.json().get('id')}), 201
 
 # --- 주문 생성: 본인 주문만 ---
 @app.route('/orders', methods=['POST'])
