@@ -21,13 +21,13 @@
       "check_name": "API 무인증 통신 (결함3)",
       "target": "http://127.0.0.1:5011/accounts/link",
       "passed": true,
-      "detail": "서명 없는 요청과 엉터리 서명 요청이 모두 차단됨 (정상 서명 요청 확인은 생략: 환경변수 HANBIT_SYNC_SECRET 미설정)"
+      "detail": "서명 없음·엉터리 서명·재전송 요청은 차단되고, 정상 서명 요청은 처리됨"
     },
     {
       "check_name": "접속기록 미보관 (결함4)",
       "target": "D:\\hanbit-privacy-project\\hanbit-market-after\\market.db",
       "passed": true,
-      "detail": "테스트 요청 후 접속기록이 63건 → 64건으로 증가함"
+      "detail": "테스트 요청 후 접속기록이 83건 → 84건으로 증가함"
     },
     {
       "check_name": "패치 미적용 (결함5)",
@@ -42,5 +42,6 @@
       "core_findings": [],
       "additional_findings": []
     }
-  ]
+  ],
+  "measured_at": "2026-11-06 18:25:24"
 }
